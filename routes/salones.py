@@ -1,5 +1,3 @@
-import json
-
 from fastapi import APIRouter, Depends, HTTPException
 
 from database import get_db_connection
@@ -17,34 +15,42 @@ def listar_salones():
             cursor.execute(
                 '''
                 SELECT
-                    id,
-                    nombre,
-                    zona,
-                    capacidad,
-                    precio,
-                    tipo,
-                    disponible,
-                    calificacion,
-                    distancia_km,
-                    badges
-                FROM salones
-                ORDER BY calificacion DESC, id ASC
+                    s.id,
+                    s.nombre,
+                    s.zona,
+                    s.capacidad,
+                    s.precio,
+                    s.tipo,
+                    s.disponible,
+                    s.calificacion,
+                    s.distancia_km,
+                    GROUP_CONCAT(sb.badge ORDER BY sb.id SEPARATOR '||') AS badges_concat
+                FROM salones s
+                LEFT JOIN salon_badges sb ON sb.salon_id = s.id
+                GROUP BY
+                    s.id,
+                    s.nombre,
+                    s.zona,
+                    s.capacidad,
+                    s.precio,
+                    s.tipo,
+                    s.disponible,
+                    s.calificacion,
+                    s.distancia_km
+                ORDER BY s.calificacion DESC, s.id ASC
                 '''
             )
             rows = cursor.fetchall()
 
         response: list[SalonOut] = []
         for row in rows:
-            raw_badges = row.get('badges')
+            raw_badges = row.get('badges_concat')
+            badges = []
             if isinstance(raw_badges, str) and raw_badges.strip():
-                try:
-                    badges = json.loads(raw_badges)
-                except json.JSONDecodeError:
-                    badges = [raw_badges]
-            elif isinstance(raw_badges, list):
-                badges = raw_badges
-            else:
-                badges = []
+                badges = [badge for badge in raw_badges.split('||') if badge]
+
+            calificacion_raw = row.get('calificacion')
+            distancia_raw = row.get('distancia_km')
 
             response.append(
                 SalonOut(
@@ -52,11 +58,11 @@ def listar_salones():
                     nombre=row['nombre'],
                     zona=row['zona'],
                     capacidad=int(row['capacidad']),
-                    precio=int(row['precio']),
+                    precio=int(float(row['precio'])),
                     tipo=row['tipo'],
                     disponible=bool(row['disponible']),
-                    calificacion=float(row['calificacion']),
-                    distancia_km=float(row['distancia_km']),
+                    calificacion=float(calificacion_raw) if calificacion_raw is not None else 0.0,
+                    distancia_km=float(distancia_raw) if distancia_raw is not None else 0.0,
                     badges=[str(badge) for badge in badges],
                 )
             )

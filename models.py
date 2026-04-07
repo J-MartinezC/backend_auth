@@ -9,6 +9,16 @@ class UsuarioAuth(BaseModel):
     password: str = Field(min_length=6)
 
 
+class UsuarioRegistro(BaseModel):
+    usuario: str = Field(min_length=1)
+    password: str = Field(min_length=6, pattern=r'^\S+$')
+
+
+class PasswordResetRequest(BaseModel):
+    usuario: str = Field(min_length=1)
+    new_password: str = Field(min_length=6, pattern=r'^\S+$')
+
+
 class Usuario(BaseModel):
     id: int | None = None
     nombre: str
