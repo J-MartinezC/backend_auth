@@ -389,11 +389,45 @@ def crear_calificacion(
                     int(user['user_id']),
                 ),
             )
+            # After inserting/updating, return the new/existing rating for convenience
+            cursor.execute(
+                '''
+                SELECT cantidad, comentario
+                FROM calificaciones
+                WHERE id_salon = %s AND id_usuario = %s
+                ''',
+                (salon_id, int(user['user_id'])),
+            )
+            row = cursor.fetchone()
         connection.commit()
+        if row:
+            return {'cantidad': int(row['cantidad']), 'comentario': row.get('comentario')}
         return {'success': True}
     except pymysql.MySQLError as exc:
         connection.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        connection.close()
+
+
+@router.get('/salones/{salon_id}/calificaciones/mias')
+def obtener_mi_calificacion(salon_id: int, user: dict = Depends(get_current_user)):
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                '''
+                SELECT cantidad, comentario
+                FROM calificaciones
+                WHERE id_salon = %s AND id_usuario = %s
+                ''',
+                (salon_id, int(user['user_id'])),
+            )
+            row = cursor.fetchone()
+
+        if row:
+            return {'cantidad': int(row['cantidad']), 'comentario': row.get('comentario')}
+        return {}
     finally:
         connection.close()
 
@@ -428,6 +462,8 @@ def listar_mis_reservas(user: dict = Depends(get_current_user)):
                 (int(user['user_id']),),
             )
             rows = cursor.fetchall()
+
+            # No change to reservation listing
 
         return [
             ReservaHistorialOut(
