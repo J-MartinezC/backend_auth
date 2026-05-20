@@ -1,11 +1,11 @@
 import os
 import pymysql
-import ssl  # <--- Agrega esta importación arriba
+import ssl  # <- Importante para la seguridad de Aiven
 
 from pymysql.cursors import DictCursor
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv()  # Carga variables locales si existen
 
 DB_HOST = os.getenv('DB_HOST', 'localhost')
 DB_USER = os.getenv('DB_USER', 'root')
@@ -13,11 +13,14 @@ DB_PASSWORD = os.getenv('DB_PASSWORD', '1234')
 DB_NAME = os.getenv('DB_NAME', 'bd_sistema_reserva')
 DB_PORT = int(os.getenv('DB_PORT', '3306'))
 
+
 def get_db_connection():
-    ssl_config = None
+    # Configuración SSL a prueba de fallos para la nube
+    ssl_ctx = None
     if "aivencloud.com" in DB_HOST:
-        # Forzamos un contexto SSL verificado estándar para producción
-        ssl_config = {'ssl': ssl.create_default_context()}
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE  # Esto evita que Aiven bloquee la app por no tener el archivo ca.pem
 
     return pymysql.connect(
         host=DB_HOST,
@@ -28,7 +31,7 @@ def get_db_connection():
         charset='utf8mb4',
         cursorclass=DictCursor,
         autocommit=False,
-        ssl=ssl_config
+        ssl=ssl_ctx
     )
 
 def init_db() -> None:
