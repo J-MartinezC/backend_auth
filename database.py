@@ -12,20 +12,12 @@ DB_PASSWORD = os.getenv('DB_PASSWORD', '1234')
 DB_NAME = os.getenv('DB_NAME', 'bd_sistema_reserva')
 DB_PORT = int(os.getenv('DB_PORT', '3306'))
 
-
-def _connect_without_db():
-    return pymysql.connect(
-        host=DB_HOST,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        port=DB_PORT,
-        charset='utf8mb4',
-        cursorclass=DictCursor,
-        autocommit=True,
-    )
-
-
 def get_db_connection():
+    # Si estamos en producción (Aiven), configuramos SSL de forma segura
+    ssl_config = None
+    if "aivencloud.com" in DB_HOST:
+        ssl_config = {"ssl": {}}  # Esto le dice a PyMySQL que active el modo SSL requerido
+
     return pymysql.connect(
         host=DB_HOST,
         user=DB_USER,
@@ -35,17 +27,12 @@ def get_db_connection():
         charset='utf8mb4',
         cursorclass=DictCursor,
         autocommit=False,
+        ssl=ssl_config  # Aplicamos la configuración SSL dinámicamente
     )
 
 
 def init_db() -> None:
-    server_connection = _connect_without_db()
-    try:
-        with server_connection.cursor() as cursor:
-            cursor.execute(f'CREATE DATABASE IF NOT EXISTS `{DB_NAME}`')
-    finally:
-        server_connection.close()
-
+    # Pasamos directo a crear las tablas en la base de datos asignada (como defaultdb de Aiven)
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
