@@ -1,10 +1,11 @@
 import os
 import pymysql
+import ssl  # <--- Agrega esta importación arriba
 
 from pymysql.cursors import DictCursor
 from dotenv import load_dotenv
 
-load_dotenv()  # Load environment variables from .env
+load_dotenv()
 
 DB_HOST = os.getenv('DB_HOST', 'localhost')
 DB_USER = os.getenv('DB_USER', 'root')
@@ -13,10 +14,10 @@ DB_NAME = os.getenv('DB_NAME', 'bd_sistema_reserva')
 DB_PORT = int(os.getenv('DB_PORT', '3306'))
 
 def get_db_connection():
-    # Si estamos en producción (Aiven), configuramos SSL de forma segura
     ssl_config = None
     if "aivencloud.com" in DB_HOST:
-        ssl_config = {"ssl": {}}  # Esto le dice a PyMySQL que active el modo SSL requerido
+        # Forzamos un contexto SSL verificado estándar para producción
+        ssl_config = {'ssl': ssl.create_default_context()}
 
     return pymysql.connect(
         host=DB_HOST,
@@ -27,12 +28,11 @@ def get_db_connection():
         charset='utf8mb4',
         cursorclass=DictCursor,
         autocommit=False,
-        ssl=ssl_config  # Aplicamos la configuración SSL dinámicamente
+        ssl=ssl_config
     )
 
-
 def init_db() -> None:
-    # Pasamos directo a crear las tablas en la base de datos asignada (como defaultdb de Aiven)
+    # Pasamos directo a crear las tablas en la base de datos asignada
     connection = get_db_connection()
     try:
         with connection.cursor() as cursor:
